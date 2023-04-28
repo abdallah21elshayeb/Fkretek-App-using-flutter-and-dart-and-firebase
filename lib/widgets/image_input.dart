@@ -1,0 +1,171 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as path;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'package:firebase_database/firebase_database.dart';
+
+import '../models/language_const.dart';
+
+class ImageInput extends StatefulWidget {
+  // final List<File> image = [];
+  @override
+  _ImageInputState createState() => _ImageInputState();
+}
+
+class _ImageInputState extends State<ImageInput> {
+  // ==================constants==================
+
+  bool uploading = false;
+  double val = 0;
+  DatabaseReference? imgRef;
+  PlatformFile? pickedFile;
+  // late firebase_storage.Reference ref;
+  final picker = ImagePicker();
+  List<String> imageUrl = [];
+  final List<File> image = [];
+  DatabaseReference? fileRef;
+  UploadTask? task;
+
+// ====================functions===================
+
+  chooseImage() async {
+    final PickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    setState(() {
+      image.add(File(PickedFile!.path));
+    });
+    if (PickedFile?.path == null) retrieveLostData();
+  }
+
+  Future retrieveLostData() async {
+    final LostData response = await picker.getLostData();
+    if (response.isEmpty) {
+      return;
+    }
+    if (response.file != null) {
+      setState(() {
+        image.add(File(response.file!.path));
+      });
+    } else {
+      print(response.file);
+    }
+  }
+
+  @override
+  initState() {
+    super.initState();
+    imgRef = FirebaseDatabase.instance
+        .ref('imageUrls/${FirebaseAuth.instance.currentUser?.uid}');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Container(
+          width: 150,
+          height: 100,
+          decoration: BoxDecoration(
+            border: Border.all(width: 1, color: Colors.grey),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(2.0),
+            child: GridView.builder(
+                itemCount: image.length + 1,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 3,
+                  crossAxisSpacing: 2,
+                ),
+                itemBuilder: (BuildContext context, int index) {
+                  return index == 0
+                      ? Center(
+                          child: IconButton(
+                              icon: const Icon(Icons.add),
+                              onPressed: () async {
+                                !uploading ? chooseImage() : null;
+                                // await Utility.saveImageToPreferences(image);
+                              }),
+                        )
+                      : Container(
+                          margin: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                              image: DecorationImage(
+                                  image: FileImage(image[index - 1]),
+                                  fit: BoxFit.cover)),
+                        );
+                }),
+          ),
+        ),
+        uploading
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      child: const Text(
+                        'uploading....',
+                        style: TextStyle(
+                          fontSize: 20,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    CircularProgressIndicator(
+                      value: val,
+                      valueColor:
+                          const AlwaysStoppedAnimation<Color>(Colors.green),
+                    )
+                  ],
+                ),
+              )
+            : Container(),
+        const SizedBox(
+          width: 10,
+        ),
+        Expanded(
+          child: FlatButton.icon(
+            icon: Icon(Icons.camera),
+            label: Text(translation(context)!.addImage),
+            textColor: Theme.of(context).primaryColor,
+            onPressed: () {
+              UploadImage.submit(
+                  image: image, imgRef: imgRef, myList: imageUrl);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+//======================class of image===================================
+class UploadImage {
+  static Future<void> submit({
+    required List<File> image,
+    required DatabaseReference? imgRef,
+    required List<String> myList,
+  }) async {
+    int i = 1;
+    firebase_storage.Reference ref;
+    for (File img in image) {
+      ref = firebase_storage.FirebaseStorage.instance.ref().child(
+          'images/${FirebaseAuth.instance.currentUser?.uid}/${path.basename(img.path)}');
+
+      await ref.putFile(img).whenComplete(() async {
+        await ref.getDownloadURL().then((value) {
+          imgRef?.set({'url': value});
+          myList.add(value);
+          i++;
+        });
+      });
+    }
+  }
+}

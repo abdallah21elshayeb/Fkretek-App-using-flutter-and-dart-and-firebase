@@ -1,0 +1,180 @@
+import 'dart:ffi';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as path;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'package:firebase_database/firebase_database.dart';
+
+import '../models/language_const.dart';
+import '../widgets/save_image.dart';
+
+class ImageInput extends StatefulWidget {
+  @override
+  _ImageInputState createState() => _ImageInputState();
+}
+
+class _ImageInputState extends State<ImageInput> {
+  // ==================constants==================
+
+  bool uploading = false;
+  double val = 0;
+  DatabaseReference? imgRef;
+  late firebase_storage.Reference ref;
+  final List<File> _image = [];
+  final picker = ImagePicker();
+
+// ====================functions===================
+
+  chooseImage() async {
+    final PickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    setState(() {
+      _image.add(File(PickedFile!.path));
+    });
+    if (PickedFile?.path == null) retrieveLostData();
+  }
+
+  Future retrieveLostData() async {
+    final LostData response = await picker.getLostData();
+    if (response.isEmpty) {
+      return;
+    }
+    if (response.file != null) {
+      setState(() {
+        _image.add(File(response.file!.path));
+      });
+    } else {
+      print(response.file);
+    }
+  }
+UploadImage.submit();
+  //  Future<void> uploadFile() async {
+  //   int i = 1;
+
+  //   for (var img in _image) {
+  //     setState(() {
+  //       val = i / _image.length;
+  //     });
+
+  //     ref = firebase_storage.FirebaseStorage.instance.ref().child(
+  //         'images/${FirebaseAuth.instance.currentUser?.uid}/${path.basename(img.path)}');
+
+  //     await ref.putFile(img).whenComplete(() async {
+  //       await ref.getDownloadURL().then((value) {
+  //         imgRef?.set({'url': value});
+  //         i++;
+  //       });
+  //     });
+  //   }
+  // }
+
+  @override
+  initState() {
+    super.initState();
+    imgRef = FirebaseDatabase.instance
+        .ref('imageUrls/${FirebaseAuth.instance.currentUser?.uid}');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Container(
+          width: 150,
+          height: 100,
+          decoration: BoxDecoration(
+            border: Border.all(width: 1, color: Colors.grey),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(2.0),
+            child: GridView.builder(
+                itemCount: _image.length + 1,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 3,
+                  crossAxisSpacing: 2,
+                ),
+                itemBuilder: (BuildContext context, int index) {
+                  return index == 0
+                      ? Center(
+                          child: IconButton(
+                              icon: const Icon(Icons.add),
+                              onPressed: () =>
+                                  !uploading ? chooseImage() : null),
+                        )
+                      : Container(
+                          margin: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                              image: DecorationImage(
+                                  image: FileImage(_image[index - 1]),
+                                  fit: BoxFit.cover)),
+                        );
+                }),
+          ),
+        ),
+        uploading
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      child: const Text(
+                        'uploading....',
+                        style: TextStyle(fontSize: 20),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    CircularProgressIndicator(
+                      value: val,
+                      valueColor:
+                          const AlwaysStoppedAnimation<Color>(Colors.green),
+                    )
+                  ],
+                ),
+              )
+            : Container(),
+        const SizedBox(
+          width: 10,
+        ),
+        Expanded(
+          child: FlatButton.icon(
+            icon: Icon(Icons.camera),
+            label: Text(translation(context)!.addImage),
+            textColor: Theme.of(context).primaryColor,
+            onPressed: () {
+              // uploadFile();
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+
+class UploadImage {
+  static Future<void> submit({required List<File> image}) async {
+    int i = 1;
+
+    for (var img in image) {
+      setState(() {
+        val = i / image.length;
+      });
+
+      ref = firebase_storage.FirebaseStorage.instance.ref().child(
+          'images/${FirebaseAuth.instance.currentUser?.uid}/${path.basename(img.path)}');
+
+      await ref.putFile(img).whenComplete(() async {
+        await ref.getDownloadURL().then((value) {
+          imgRef?.set({'url': value});
+          i++;
+        });
+      });
+    }
+  }
+}

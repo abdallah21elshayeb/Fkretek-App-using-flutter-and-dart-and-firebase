@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "254229731000",
+    "project_id": "fkretek-app",
+    "storage_bucket": "fkretek-app.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:254229731000:android:7b7e61eee1797efa33064d",
+        "android_client_info": {
+          "package_name": "com.fkretek.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "254229731000-s4sdcnkfpfjsm201v3h9fmt5adihg1qi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMKSrTtVZWPs133XhTeHckhD3w2mIYaro"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "254229731000-s4sdcnkfpfjsm201v3h9fmt5adihg1qi.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
